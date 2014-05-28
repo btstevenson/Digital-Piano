@@ -8,9 +8,10 @@
 #include <avr/io.h>
 #include "io.c"
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 
 const char *Welcome[3] = {"Welcome to the  Digital Piano.", "Can play, record Press A0 to", "continue."};
-const char 
+const char *MainMenu[8] = {0};
 
 volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
