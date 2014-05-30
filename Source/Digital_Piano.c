@@ -9,19 +9,12 @@
 #include "io.c"
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
-
-const char *Welcome[3] = {"Welcome to the  Digital Piano.", "Can play, record Press 1 to", "continue."};
-const char *MainMenu[2] = {"1: Play stored songs.", "2: Record Song"};
-const char *SongMenu[8] = {"1.Test Song #1\n", "2. Test Song #2\n", "3. Previous Menu"};
-const char *RecordMenu[3] = {0};
  
 volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
 unsigned long _avr_time_cntcurr=0;
 unsigned char tmpA = 0x00;
-unsigned char ucWelcIdx = 3;
-unsigned char ucMainIdx = 2;
-unsigned short usDspPrd = 2000;
+
 
 void TimerOn()
 {
@@ -65,6 +58,13 @@ void TckFct_Display()
 {
 	static unsigned short usCnt = 0;
 	static unsigned char ucIdx = 0;
+	static unsigned char ucWelcIdx = 3;
+	static unsigned char ucMainIdx = 2;
+	unsigned short usDspPrd = 2000;
+	const char *Welcome[3] = {"Welcome to the  Digital Piano.", "Can play, record Press 1 to", "continue."};
+	const char *MainMenu[2] = {"1: Play stored songs.", "2: Record Song"};
+	const char *SongMenu[8] = {"1.Test Song #1\n", "2. Test Song #2\n", "3. Previous Menu"};
+	const char *RecordMenu[3] = {0};
 	//static unsigned char ucChoice = 0;  /* might need for storing user choice */
 	
 	tmpA = ~PINA;
