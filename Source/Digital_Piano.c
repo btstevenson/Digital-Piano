@@ -11,7 +11,7 @@
 #include <avr/eeprom.h>
 
 const char *Welcome[3] = {"Welcome to the  Digital Piano.", "Can play, record Press A0 to", "continue."};
-const char *MainMenu[8] = {0};
+const char *MainMenu[8] = {"1.Test Song #1\n", "2. Test Song #2\n"};
 
 volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
@@ -129,6 +129,24 @@ void TckFct_Display()
 		default:
 			break;
 	}	
+}
+
+/* function for recording input from user */
+void TckFct_RecordSound()
+{
+	
+}
+
+/* function for getting data from eeprom */
+void GetData()
+{
+	
+}
+
+/* function for setting data from eeprom */
+void SetData()
+{
+	
 }
 
 int main(void)
