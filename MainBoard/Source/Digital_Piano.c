@@ -8,10 +8,11 @@
 #include <avr/io.h>
 #include <stdlib.h>
 #include <string.h>
-#include "io.c"
+#include "io.h"
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
- 
+#include "usart_ATmega1284.h"
+
 volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
 unsigned long _avr_time_cntcurr=0;
@@ -300,10 +301,16 @@ enum Ply_States{Ply_Init, Ply_Get, Ply_Play} Ply_State;
 void TckFct_PlaySong()
 {
 	SongInfo_t SongHold;
-	memset(&SongHold, 0, sizeof(SongInfo_t));
+	static unsigned char ucMemFlag = 0; // flag for not clearing memory everytime
+	if(ucMemFlag == 0)
+	{
+		memset(&SongHold, 0, sizeof(SongInfo_t));
+	}
 	
 	switch(Ply_State)
 	{
+		case -1:
+			break;
 		case Ply_Init:
 			break;
 		case Ply_Get:
