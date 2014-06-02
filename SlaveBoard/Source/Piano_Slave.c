@@ -17,6 +17,17 @@ volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
 unsigned long _avr_time_cntcurr=0;
 
+struct SongRead
+{
+	uint16_t usTimeLength;
+	uint16_t usNoteLength;
+};
+typedef struct SongRead SongRead_t;
+
+SongRead_t EEMEM SongOneInfo = {7, 7};
+uint16_t EEMEM SongOneNotes[7] = {392,349,392,349,330,294,330};
+uint16_t EEMEM SongOneTime[7] = {1000,1000,1000,1000,1000,1000,2000};
+
 void TimerOn()
 {
 	TCCR1B = 0x0B;
@@ -53,22 +64,118 @@ void TimerSet(unsigned long M)
 	_avr_time_cntcurr = _avr_timer_M;
 }
 
-enum Msg_States{Msg_Init, Msg_Get, Msg_Send} Msg_State;
+enum Msg_States{Msg_Init, Msg_Get, Msg_Form, Msg_Send} Msg_State;
 
 void TckFct_Messenger()
 {
-	static unsigned char *pucBuffer = NULL;
-	static unsigned short usPrd = 2;
+	static unsigned char ucSongNum = 0;
+	static unsigned char ucPrd = 2; // period for checking for messages
+	static unsigned char ucPrdSnd = 2; // period for sending messages
+	static unsigned char ucCnt = 0;
+	static unsigned char ucMsgFlag = 0; // flag for when sending or receiving
+	static unsigned char ucSendMsg = 0;
+	static uint8_t		 *pucBuffer = NULL;
+	static unsigned char ucIdx = 0;
+	static unsigned char ucMsgLength = 0;
+	static unsigned char ucErrorCnt = 0; // checking for errors, if a certain number then reset messenger
 	
 	switch(Msg_State)
 	{
 		case -1:
+			Msg_State = Msg_Init;
 			break;
 		case Msg_Init:
+			Msg_State = Msg_Get;
 			break;
 		case Msg_Get:
+			if(ucCnt < ucPrd)
+			{
+				ucCnt++;
+			}
+			else
+			{
+				ucCnt = 0;
+				if(USART_HasReceived(0))
+				{
+					ucSongNum = USART_Receive(0);
+					//USART_Flush(0);
+					PORTA = ucSongNum;
+					ucMsgFlag = 1;
+				}
+			}
+			if(ucMsgFlag == 1)
+			{
+				Msg_State = Msg_Form;
+			}
+			else
+			{
+				Msg_State = Msg_Get;
+			}
+			
+			break;
+		case Msg_Form:
+			switch(ucSongNum)
+			{
+				case 1:
+					if((pucBuffer = (uint8_t*)malloc(sizeof(SongOneInfo)+sizeof(SongOneNotes)+sizeof(SongOneTime))) == NULL)
+					{
+						ucErrorCnt++;
+						Msg_State = Msg_Form;
+						break;
+					}
+					memset(&pucBuffer[0], 0, sizeof(SongOneInfo)+sizeof(SongOneNotes)+sizeof(SongOneTime));
+					eeprom_read_block(pucBuffer + ucIdx, &SongOneInfo, sizeof(SongOneInfo));
+					ucIdx += sizeof(SongOneInfo);
+					eeprom_read_block((void*)pucBuffer + ucIdx, (const void*)SongOneNotes, sizeof(SongOneNotes));
+					ucIdx += sizeof(SongOneNotes);
+					eeprom_read_block((void*)pucBuffer + ucIdx, (const void*)SongOneTime, sizeof(SongOneTime));
+					ucIdx += sizeof(SongOneTime);
+					ucMsgLength = ucIdx;
+					ucIdx = 0;
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
+				case 4:
+					break;
+				default:
+					//this is error check, if go here reset whole messenger
+					break;
+			}
 			break;
 		case Msg_Send:
+			if(ucCnt < ucPrdSnd)
+			{
+				ucCnt++;
+			}
+			else
+			{
+				ucCnt = 0;
+				if(USART_IsSendReady(1) && ucMsgFlag == 1)
+				{
+					ucSendMsg = pucBuffer[ucIdx];
+					USART_Send(ucSendMsg, 1);
+					ucMsgFlag = 2;
+				}
+				if(USART_HasTransmitted(1))
+				{
+					ucIdx++;
+					ucMsgFlag = 1;
+					if(ucIdx >= ucMsgLength)
+					{
+						ucMsgFlag = 0;	
+					}			
+				}
+			}
+			if(ucMsgFlag == 0)
+			{
+				Msg_State = Msg_Get;
+			}
+			else
+			{
+				Msg_State = Msg_Send;
+			}
 			break;
 		default:
 			break;
@@ -78,6 +185,8 @@ void TckFct_Messenger()
 		case Msg_Init:
 			break;
 		case Msg_Get:
+			break;
+		case Msg_Form:
 			break;
 		case Msg_Send:
 			break;
@@ -88,8 +197,14 @@ void TckFct_Messenger()
 
 int main(void)
 {
+	DDRA = 0xFF; PORTA = 0x00;
+	DDRD = 0xFF; PORTD = 0x00;
 	TimerSet(1);
 	TimerOn();
+	initUSART(0);
+	initUSART(1);
+	USART_Flush(0);
+	USART_Flush(1);
 	Msg_State = -1;
 	
     while(1)
