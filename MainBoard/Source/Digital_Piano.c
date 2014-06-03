@@ -127,13 +127,14 @@ void UsartSend(unsigned char ucSong, unsigned char *ucMsgFlag)
 		*ucMsgFlag = 1;
 	}		
 }
-
+// add parameter for saying write happened
 void UsartRecv(unsigned char *ucTemp, unsigned char *ucDataLeft)
 {
 	if(USART_HasReceived(0))
 	{
 		*ucTemp = USART_Receive(0);
 		*ucDataLeft -= sizeof(unsigned char);
+		USART_Flush(0);
 	}
 }
 
@@ -387,8 +388,8 @@ void TckFct_PlaySong()
 	static unsigned char	*pucBuffer		= NULL;
 	static unsigned short	*pusNoteBuff	= NULL;
 	static unsigned short	*pusTimeBuff	= NULL;
-	static unsigned short	ucMsgPrd		= 2; // period for messaging of usart
-	//static unsigned char	ucReadPrd		= 2; // period for checking for read
+	static unsigned short	ucMsgPrd		= 4; // period for messaging of usart
+	static unsigned char	ucReadPrd		= 4; // period for checking for read
 	static unsigned short	ucCnt			= 0; // counter variable for period
 	static unsigned char	ucTemp			= 0;
 	static unsigned char	ucReadAmt		= 0; // this will change after testing
@@ -397,6 +398,7 @@ void TckFct_PlaySong()
 	static unsigned short   usIdx			= 0;
 	static unsigned short	usFrequency		= 0;
 	static unsigned char	ucSizeSong		= 0;
+	static char				szTemp[33];
 	
 	
 	switch(Ply_State)
@@ -448,8 +450,7 @@ void TckFct_PlaySong()
 			}
 			break;
 		case Ply_Get:
-			LCD_DisplayString(1, (const unsigned char*)"in get");
-			if(ucCnt < ucMsgPrd)
+			if(ucCnt < ucReadPrd)
 			{
 				ucCnt++;
 			}
@@ -459,6 +460,7 @@ void TckFct_PlaySong()
 				// two arrays that are stored to the total amount to read.
 				switch(ucMsgFlag)
 				{
+					// need to create variable to check if read happened, if not then write should not happen
 					case 2:
 						ucReadAmt = sizeof(SongRead_t);
 						if((pucBuffer = (unsigned char*)malloc(sizeof(SongRead_t))) == NULL)
@@ -469,6 +471,7 @@ void TckFct_PlaySong()
 						ucMsgFlag = 3;
 						break;
 					case 3:
+						LCD_DisplayString(1,(const unsigned char*)itoa((int)ucReadAmt, szTemp, 10));
 						UsartRecv(&ucTemp, &ucReadAmt);
 						pucBuffer[usIdx] = ucTemp;
 						usIdx += sizeof(unsigned char);
@@ -483,6 +486,7 @@ void TckFct_PlaySong()
 						}
 						break;
 					case 4:
+						LCD_DisplayString(1,(const unsigned char*)itoa((int)ucReadAmt, szTemp, 10));
 						UsartRecv(&ucTemp, &ucReadAmt);
 						pucBuffer[usIdx] = ucTemp;
 						usIdx++;
@@ -498,6 +502,7 @@ void TckFct_PlaySong()
 						}
 						break;
 					case 5:
+						LCD_DisplayString(1,(const unsigned char*)itoa((int)ucReadAmt, szTemp, 10));
 						UsartRecv(&ucTemp, &ucReadAmt);
 						pucBuffer[usIdx] = ucTemp;
 						usIdx++;
@@ -555,6 +560,8 @@ void TckFct_PlaySong()
 				ucCnt = 0;
 				set_PWM(usFrequency);
 				gucSongChoice = 0;
+				free(pusNoteBuff);
+				free(pusTimeBuff);
 				Ply_State = Ply_Init;	
 			}
 			break;

@@ -70,14 +70,15 @@ void TckFct_Messenger()
 {
 	static unsigned char ucSongNum = 0;
 	static unsigned char ucPrd = 2; // period for checking for messages
-	static unsigned char ucPrdSnd = 2; // period for sending messages
+	static unsigned char ucPrdSnd = 16; // period for sending messages
 	static unsigned char ucCnt = 0;
 	static unsigned char ucMsgFlag = 0; // flag for when sending or receiving
 	static unsigned char ucSendMsg = 0;
 	static uint8_t		 *pucBuffer = NULL;
-	static unsigned char ucIdx = 0;
-	static unsigned char ucMsgLength = 0;
+	static unsigned short usIdx = 0;
+	static unsigned short usMsgLength = 0;
 	static unsigned char ucErrorCnt = 0; // checking for errors, if a certain number then reset messenger
+	static unsigned char ucLight = 0x00;
 	
 	switch(Msg_State)
 	{
@@ -85,6 +86,9 @@ void TckFct_Messenger()
 			Msg_State = Msg_Init;
 			break;
 		case Msg_Init:
+			USART_Flush(0);
+			ucLight = 0x01;
+			PORTA = ucLight;
 			Msg_State = Msg_Get;
 			break;
 		case Msg_Get:
@@ -94,11 +98,13 @@ void TckFct_Messenger()
 			}
 			else
 			{
+				
 				ucCnt = 0;
 				if(USART_HasReceived(0))
 				{
+					ucLight = 0x02;
 					ucSongNum = USART_Receive(0);
-					//USART_Flush(0);
+					USART_Flush(0);
 					PORTA = ucSongNum;
 					ucMsgFlag = 1;
 				}
@@ -111,7 +117,7 @@ void TckFct_Messenger()
 			{
 				Msg_State = Msg_Get;
 			}
-			
+			PORTA = ucLight;
 			break;
 		case Msg_Form:
 			switch(ucSongNum)
@@ -124,14 +130,16 @@ void TckFct_Messenger()
 						break;
 					}
 					memset(&pucBuffer[0], 0, sizeof(SongOneInfo)+sizeof(SongOneNotes)+sizeof(SongOneTime));
-					eeprom_read_block(pucBuffer + ucIdx, &SongOneInfo, sizeof(SongOneInfo));
-					ucIdx += sizeof(SongOneInfo);
-					eeprom_read_block((void*)pucBuffer + ucIdx, (const void*)SongOneNotes, sizeof(SongOneNotes));
-					ucIdx += sizeof(SongOneNotes);
-					eeprom_read_block((void*)pucBuffer + ucIdx, (const void*)SongOneTime, sizeof(SongOneTime));
-					ucIdx += sizeof(SongOneTime);
-					ucMsgLength = ucIdx;
-					ucIdx = 0;
+					eeprom_read_block(pucBuffer + usIdx, &SongOneInfo, sizeof(SongOneInfo));
+					usIdx += sizeof(SongOneInfo);
+					eeprom_read_block((void*)pucBuffer + usIdx, (const void*)SongOneNotes, sizeof(SongOneNotes));
+					usIdx += sizeof(SongOneNotes);
+					eeprom_read_block((void*)pucBuffer + usIdx, (const void*)SongOneTime, sizeof(SongOneTime));
+					usIdx += sizeof(SongOneTime);
+					usMsgLength = usIdx;
+					usIdx = 0;
+					ucLight = 0x03;
+					Msg_State = Msg_Send;
 					break;
 				case 2:
 					break;
@@ -143,6 +151,7 @@ void TckFct_Messenger()
 					//this is error check, if go here reset whole messenger
 					break;
 			}
+			PORTA = ucLight;
 			break;
 		case Msg_Send:
 			if(ucCnt < ucPrdSnd)
@@ -154,28 +163,32 @@ void TckFct_Messenger()
 				ucCnt = 0;
 				if(USART_IsSendReady(1) && ucMsgFlag == 1)
 				{
-					ucSendMsg = pucBuffer[ucIdx];
+					ucLight = 0x04;
+					ucSendMsg = pucBuffer[usIdx];
 					USART_Send(ucSendMsg, 1);
 					ucMsgFlag = 2;
 				}
-				if(USART_HasTransmitted(1))
+				if(USART_HasTransmitted(1) && ucMsgFlag == 2)
 				{
-					ucIdx++;
+					usIdx++;
 					ucMsgFlag = 1;
-					if(ucIdx >= ucMsgLength)
+					ucLight = 0x10;
+					if(usIdx >= usMsgLength)
 					{
+						ucLight = 0x0F;
 						ucMsgFlag = 0;	
 					}			
 				}
 			}
 			if(ucMsgFlag == 0)
 			{
-				Msg_State = Msg_Get;
+				Msg_State = Msg_Init;
 			}
 			else
 			{
 				Msg_State = Msg_Send;
 			}
+			PORTA = ucLight;
 			break;
 		default:
 			break;
