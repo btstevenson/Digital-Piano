@@ -513,12 +513,12 @@ void TckFct_Play()
 					}
 					else
 					{
-						pusNoteHold = (unsigned short*)malloc(sizeof(RecordOneNotes));
-						memset(pusNoteHold, 0, sizeof(RecordOneNotes));
-						pusTimeHold = (unsigned short*)malloc(sizeof(RecordOneTime));
-						memset(pusTimeHold, 0, sizeof(RecordOneTime));
-						eeprom_read_block((void*)pusNoteHold, (const void*)&RecordOneNotes[0], sizeof(RecordOneNotes));
-						eeprom_read_block((void*)pusTimeHold, (const void*)&RecordOneTime[0], sizeof(RecordOneTime));
+						pusNoteHold = (unsigned short*)malloc(ucSize*sizeof(unsigned short));
+						memset(pusNoteHold, 0, ucSize*sizeof(unsigned short));
+						pusTimeHold = (unsigned short*)malloc(ucSize*sizeof(unsigned short));
+						memset(pusTimeHold, 0, ucSize*sizeof(unsigned short));
+						eeprom_read_block((void*)pusNoteHold, (const void*)&RecordOneNotes[0], ucSize*sizeof(unsigned short));
+						eeprom_read_block((void*)pusTimeHold, (const void*)&RecordOneTime[0], ucSize*sizeof(unsigned short));
 						Ply_State = Ply_Off;
 					}
 					break;
@@ -531,12 +531,12 @@ void TckFct_Play()
 					}
 					else
 					{
-						pusNoteHold = (unsigned short*)malloc(sizeof(RecordTwoNotes));
-						memset(pusNoteHold, 0, sizeof(RecordTwoNotes));
-						pusTimeHold = (unsigned short*)malloc(sizeof(RecordTwoTime));
-						memset(pusTimeHold, 0, sizeof(RecordTwoTime));
-						eeprom_read_block((void*)pusNoteHold, (const void*)&RecordTwoNotes[0], sizeof(RecordTwoNotes));
-						eeprom_read_block((void*)pusTimeHold, (const void*)&RecordTwoTime[0], sizeof(RecordTwoTime));
+						pusNoteHold = (unsigned short*)malloc(ucSize*sizeof(unsigned short));
+						memset(pusNoteHold, 0, ucSize*sizeof(unsigned short));
+						pusTimeHold = (unsigned short*)malloc(ucSize*sizeof(unsigned short));
+						memset(pusTimeHold, 0, ucSize*sizeof(unsigned short));
+						eeprom_read_block((void*)pusNoteHold, (const void*)&RecordTwoNotes[0], ucSize*sizeof(unsigned short));
+						eeprom_read_block((void*)pusTimeHold, (const void*)&RecordTwoTime[0], ucSize*sizeof(unsigned short));
 						Ply_State = Ply_Off;
 					}
 					break;
@@ -549,13 +549,10 @@ void TckFct_Play()
 			PWM_on();
 			usFrequency = pusNoteHold[ucCnt];
 			LCD_ClearScreen();
-			if(usFrequency != 0)
-			{
-				LCD_WriteData(SongNote(usFrequency));
-				CustomChar(3);
-				LCD_Cursor(3);
-				LCD_WriteData(3);	
-			}
+			LCD_WriteData(SongNote(usFrequency));
+			CustomChar(3);
+			LCD_Cursor(3);
+			LCD_WriteData(3);
 			LCD_Cursor(0);
 			set_PWM(usFrequency);
 			usTimeCnt++;
@@ -569,13 +566,10 @@ void TckFct_Play()
 					PWM_on();
 					usFrequency = pusNoteHold[ucCnt];
 					LCD_ClearScreen();
-					if(usFrequency != 0)
-					{
-						LCD_WriteData(SongNote(usFrequency));
-						CustomChar(3);
-						LCD_Cursor(3);
-						LCD_WriteData(3);
-					}
+					LCD_WriteData(SongNote(usFrequency));
+					CustomChar(3);
+					LCD_Cursor(3);
+					LCD_WriteData(3);
 					LCD_Cursor(0);
 					set_PWM(usFrequency);
 				}
@@ -639,14 +633,13 @@ void TckFct_Rec()
 	static unsigned short	pusRecNote[80];
 	static unsigned short	pusRecTime[80];
 	static unsigned short   usTime			= 0;
-	static const unsigned short	usMaxPer		= 64000;
+	static const unsigned short	usMaxPer		= INT16_MAX;
 	static unsigned short	usNoResp		= 0;
 	static unsigned char	ucCurNote		= 0x00;
 	static unsigned char	ucPrevNote		= 0x00;
 	static unsigned char	ucSize			= 0;	
 	static unsigned char	ucRecSong		= 1;
 	static const unsigned char		MAXSIZE			= 80;
-	static unsigned char	ucTmpSize		= 0;
 	
 	
 	tmpA = ~PINA;
@@ -669,21 +662,18 @@ void TckFct_Rec()
 			break;
 		case Rec_Listen:
 			
-			if(usNoResp < 3000 && ucSize < MAXSIZE)
+			if(usNoResp < 2000 && ucSize < MAXSIZE)
 			{
 				if(ucSize == 0)
 				{
 					LCD_ClearScreen();
 					ucPrevNote = ucCurNote;
 					ucSize++;
-					if(ucCurNote != 0x00)
-					{
-						LCD_WriteData(SongNote(NoteFrequency(ucCurNote)));
-						LCD_Cursor(0);
-						set_PWM(NoteFrequency(ucCurNote));	
-					}
+					LCD_WriteData(SongNote(NoteFrequency(ucCurNote)));
+					LCD_Cursor(0);
+					set_PWM(NoteFrequency(ucCurNote));
 				}
-				if(ucPrevNote != ucCurNote || usTime >= (usMaxPer-1))
+				if(ucPrevNote != ucCurNote || usTime >= usMaxPer-1)
 				{
 					if(ucCurNote == 0x00)
 					{
@@ -716,47 +706,26 @@ void TckFct_Rec()
 			}
 			else
 			{
-				pusRecTime[ucSize-1] = usNoResp - usTime;
+				pusRecTime[ucSize-1] = usTime - usNoResp;
 				pusRecNote[ucSize-1] = NoteFrequency(ucPrevNote);
 				//ucSize++;
 				Rec_State = Rec_Store;
 			}
 			break;
 		case Rec_Store:
+			PWM_off();
 			if(ucRecSong == 1)
 			{
 				ucRecSong = 2;
-				ucTmpSize = eeprom_read_byte(&RecordOneSize);
-				if(ucTmpSize > ucSize)
-				{
-					ucTmpSize = (ucTmpSize - ucSize) + ucSize;
-					eeprom_update_byte(&RecordOneSize, ucSize);
-					eeprom_update_block((const void*)&pusRecNote[0], (void*)&RecordOneNotes[0], ucTmpSize);
-					eeprom_update_block((const void*)&pusRecTime[0], (void*)&RecordOneTime[0], ucTmpSize);
-				}
-				else
-				{
-					eeprom_update_byte(&RecordOneSize, ucSize);
-					eeprom_update_block((const void*)&pusRecNote[0], (void*)&RecordOneNotes[0], ucSize);
-					eeprom_update_block((const void*)&pusRecTime[0], (void*)&RecordOneTime[0], ucSize);
-				}
+				eeprom_update_byte(&RecordOneSize, ucSize);
+				eeprom_update_block((const void*)&pusRecNote[0], (void*)&RecordOneNotes[0], ucSize*sizeof(unsigned short));
+				eeprom_update_block((const void*)&pusRecTime[0], (void*)&RecordOneTime[0], ucSize*sizeof(unsigned short));
 			}
 			else
 			{
-				ucTmpSize = eeprom_read_byte(&RecordTwoSize);
-				if(ucTmpSize > ucSize)
-				{
-					ucTmpSize = (ucTmpSize - ucSize) + ucSize;
-					eeprom_update_byte(&RecordOneSize, ucSize);
-					eeprom_update_block((const void*)&pusRecNote[0], (void*)&RecordTwoNotes[0], ucTmpSize);
-					eeprom_update_block((const void*)&pusRecTime[0], (void*)&RecordTwoTime[0], ucTmpSize);
-				}
-				else
-				{
-					eeprom_update_byte(&RecordOneSize, ucSize);
-					eeprom_update_block((const void*)&pusRecNote[0], (void*)&RecordTwoNotes[0], ucSize);
-					eeprom_update_block((const void*)&pusRecTime[0], (void*)&RecordTwoTime[0], ucSize);
-				}
+				eeprom_update_byte(&RecordTwoSize, ucSize);
+				eeprom_update_block((const void*)&pusRecNote[0], (void*)&RecordTwoNotes[0], ucSize*sizeof(unsigned short));
+				eeprom_update_block((const void*)&pusRecTime[0], (void*)&RecordTwoTime[0], ucSize*sizeof(unsigned short));
 				ucRecSong = 1;
 			}
 			Rec_State = Rec_Cleanup;
