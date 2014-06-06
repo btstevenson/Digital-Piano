@@ -1,3 +1,5 @@
+//Name & E-mail: Brandon Stevenson bstev002@ucr.edu
+// Credited to IEEE at UC Riverside
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdio.h>

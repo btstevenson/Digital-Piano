@@ -1,3 +1,5 @@
+//Name & E-mail: Brandon Stevenson bstev002@ucr.edu
+// Credited to IEEE at UC Riverside
 #ifndef __io_h__
 #define __io_h__
 
