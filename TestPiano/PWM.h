@@ -1,3 +1,5 @@
+//Name & E-mail: Brandon Stevenson bstev002@ucr.edu
+// Credited to IEEE at UC Riverside
 #ifndef _PWM_H_
 #define _PWM_H_
 
